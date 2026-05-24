@@ -1,0 +1,365 @@
+
+<meta charset="UTF-8">
+<h2 class="sr-only">Blue Sky route navigator: JetBlue and United destinations with BOS non-stop filter</h2>
+<style>
+.sc{background:var(--color-background-secondary,#f5f5f2);border-radius:var(--border-radius-md,8px);padding:.75rem 1rem}
+.sl{font-size:11px;color:var(--color-text-secondary,#666);margin:0 0 2px}
+.sv{font-size:20px;font-weight:500;margin:0}
+.tb{border:0.5px solid var(--color-border-secondary,rgba(0,0,0,.22));background:transparent;border-radius:var(--border-radius-md,8px);padding:5px 13px;cursor:pointer;font-size:13px;color:var(--color-text-secondary,#666)}
+.tb.on{background:var(--color-background-info,#e6f1fb);color:var(--color-text-info,#185fa5);border-color:var(--color-border-info,#185fa5)}
+.fb{border:0.5px solid var(--color-border-tertiary,rgba(0,0,0,.13));background:transparent;border-radius:999px;padding:3px 10px;cursor:pointer;font-size:12px;color:var(--color-text-secondary,#666)}
+.fb.on{border-color:var(--color-border-primary,rgba(0,0,0,.38));color:var(--color-text-primary,#111);font-weight:500}
+.sb{border:0.5px solid var(--color-border-secondary,rgba(0,0,0,.22));background:transparent;border-radius:999px;padding:4px 12px;cursor:pointer;font-size:12px;color:var(--color-text-secondary,#666)}
+.sb.on{background:var(--color-background-danger,#fcebeb);color:var(--color-text-danger,#a32d2d);border-color:var(--color-border-danger,#a32d2d);font-weight:500}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;vertical-align:middle;margin-right:4px}
+#tip{position:absolute;pointer-events:none;background:#ffffff;border-radius:8px;padding:7px 11px;font-size:12px;z-index:9;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,0.28);display:none}
+#tip-n{font-weight:600;color:#111111;font-size:13px}
+#tip-s{color:#555555;font-size:11px;margin-top:2px}
+.thr th{text-align:left;padding:5px 8px;font-size:11px;font-weight:500;color:var(--color-text-secondary,#666)}
+</style>
+
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding-top:1rem;margin-bottom:1rem">
+  <div class="sc"><p class="sl">JetBlue network</p><p class="sv" style="color:var(--color-text-info,#185fa5)">~112</p></div>
+  <div class="sc"><p class="sl">United network</p><p class="sv" style="color:var(--color-text-warning,#ba7517)">~391</p></div>
+  <div class="sc"><p class="sl">Shared cities</p><p class="sv" style="color:var(--color-text-success,#0f6e56)">~80</p></div>
+  <div class="sc"><p class="sl" style="color:var(--color-text-warning,#ba7517)">New via Blue Sky &#10022;</p><p class="sv" style="color:var(--color-text-warning,#ba7517)">300+</p></div>
+</div>
+
+<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:.6rem">
+  <div style="display:flex;gap:7px">
+    <button class="tb on" id="t-map" onclick="setTab('map')">Map</button>
+    <button class="tb" id="t-tbl" onclick="setTab('tbl')">Table</button>
+  </div>
+  <div style="display:flex;gap:6px;align-items:center">
+    <span style="font-size:11px;color:var(--color-text-secondary,#666)">Routing:</span>
+    <div style="display:flex;gap:5px" id="stop-btns">
+      <button class="sb on" data-s="any" onclick="setStop('any')">Any stops</button>
+      <button class="sb" data-s="bos" onclick="setStop('bos')">&#9992; BOS non-stop</button>
+    </div>
+  </div>
+</div>
+
+<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:.75rem;align-items:center" id="cat-btns">
+  <span style="font-size:11px;color:var(--color-text-secondary,#666)">Airlines:</span>
+  <button class="fb on" data-c="all" onclick="setCat('all')">All</button>
+  <button class="fb" data-c="both" onclick="setCat('both')"><span class="dot" style="background:#1D9E75"></span>Both</button>
+  <button class="fb" data-c="b6" onclick="setCat('b6')"><span class="dot" style="background:#378ADD"></span>JetBlue only</button>
+  <button class="fb" data-c="ua" onclick="setCat('ua')"><span class="dot" style="background:#EF9F27"></span>New via United</button>
+</div>
+
+<div id="v-map">
+  <div id="mwrap" style="position:relative;border-radius:12px;overflow:hidden;border:0.5px solid rgba(0,0,0,.15)">
+    <svg id="wmap" viewBox="0 0 680 355" style="width:100%;display:block;background:#0f1923"></svg>
+    <div id="tip"><div id="tip-n"></div><div id="tip-s"></div></div>
+  </div>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:11px;color:var(--color-text-secondary,#666)">
+    <span><span class="dot" style="background:#1D9E75"></span>Both airlines</span>
+    <span><span class="dot" style="background:#378ADD"></span>JetBlue only</span>
+    <span><span class="dot" style="background:#EF9F27"></span>New via United (sample &mdash; 300+ total)</span>
+    <span style="margin-left:auto;font-style:italic">hover dots &middot; BOS filter approximate</span>
+  </div>
+</div>
+
+<div id="v-tbl" style="display:none">
+  <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:.75rem" id="reg-btns">
+    <button class="fb on" data-r="all" onclick="setReg('all')">All regions</button>
+    <button class="fb" data-r="dom" onclick="setReg('dom')">&#127482;&#127480; US domestic</button>
+    <button class="fb" data-r="car" onclick="setReg('car')">&#127965; Caribbean</button>
+    <button class="fb" data-r="lat" onclick="setReg('lat')">&#127758; Latin America</button>
+    <button class="fb" data-r="eur" onclick="setReg('eur')">&#127757; Europe</button>
+    <button class="fb" data-r="asi" onclick="setReg('asi')">&#127759; Asia Pacific</button>
+    <button class="fb" data-r="mea" onclick="setReg('mea')">&#9992; Mideast/Africa</button>
+  </div>
+  <div id="tbl-ct" style="font-size:12px;color:var(--color-text-secondary,#666);margin-bottom:5px"></div>
+  <table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr class="thr" style="border-bottom:1px solid rgba(0,0,0,.15)">
+      <th style="width:52px">Code</th><th>City</th><th style="width:48px">BOS</th><th style="width:110px">Region</th><th style="width:155px">Status</th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script>
+const CC={b6:'#378ADD',ua:'#EF9F27',both:'#1D9E75'};
+const CL={b6:'JetBlue only',ua:'New via United \u2726',both:'Both airlines'};
+const RL={dom:'US Domestic',car:'Caribbean',lat:'Latin America',eur:'Europe',asi:'Asia Pacific',mea:'Mideast & Africa'};
+const BS={b6:'background:#E6F1FB;color:#0C447C',ua:'background:#FAEEDA;color:#633806',both:'background:#E1F5EE;color:#085041'};
+
+const BNS=new Set('JFK,LGA,EWR,PHL,DCA,ATL,ORD,MIA,FLL,MCO,TPA,LAX,SFO,DEN,LAS,DFW,IAH,SEA,PHX,AUS,BNA,SAN,SLC,DTW,CLE,PIT,MSY,PDX,RDU,BUF,ALB,ROC,SYR,PWM,ABQ,SMF,RNO,RSW,PBI,MKE,BZN,CHS,JAX,SAV,MHT,BDL,ORF,RIC,PVD,SRQ,PSP,ONT,AVL,ILM,BUR,HPN,TVC,IAD,MSP,LGB,HYA,MVY,ACK,ISP,EYW,SJU,STT,STX,MBJ,KIN,NAS,CUN,SJD,AUA,GCM,PUJ,SDQ,SXM,BDA,ANU,PAP,POS,BGI,BQN,LHR,CDG,AMS,DUB,MAD,EDI,LGW,BCN,MXP'.split(','));
+
+const RAW=`JFK|New York JFK|40.64|-73.78|both|dom
+LGA|New York LaGuardia|40.78|-73.87|both|dom
+EWR|Newark|40.69|-74.17|both|dom
+PHL|Philadelphia|39.87|-75.24|both|dom
+DCA|Washington DCA|38.85|-77.04|both|dom
+ATL|Atlanta|33.64|-84.43|both|dom
+ORD|Chicago O'Hare|41.98|-87.91|both|dom
+MIA|Miami|25.80|-80.29|both|dom
+FLL|Fort Lauderdale|26.07|-80.15|both|dom
+MCO|Orlando|28.43|-81.31|both|dom
+TPA|Tampa|27.98|-82.53|both|dom
+LAX|Los Angeles|33.94|-118.41|both|dom
+SFO|San Francisco|37.62|-122.38|both|dom
+DEN|Denver|39.86|-104.67|both|dom
+LAS|Las Vegas|36.08|-115.15|both|dom
+DFW|Dallas/Fort Worth|32.90|-97.04|both|dom
+IAH|Houston|29.99|-95.34|both|dom
+SEA|Seattle|47.45|-122.31|both|dom
+PHX|Phoenix|33.44|-112.01|both|dom
+AUS|Austin|30.19|-97.67|both|dom
+BNA|Nashville|36.13|-86.68|both|dom
+SAN|San Diego|32.73|-117.19|both|dom
+SLC|Salt Lake City|40.79|-111.98|both|dom
+DTW|Detroit|42.21|-83.35|both|dom
+CLE|Cleveland|41.41|-81.85|both|dom
+PIT|Pittsburgh|40.49|-80.23|both|dom
+MSY|New Orleans|29.99|-90.26|both|dom
+PDX|Portland OR|45.59|-122.60|both|dom
+RDU|Raleigh/Durham|35.88|-78.79|both|dom
+BUF|Buffalo|42.94|-78.73|both|dom
+ALB|Albany|42.75|-73.80|both|dom
+ROC|Rochester NY|43.12|-77.67|both|dom
+SYR|Syracuse|43.11|-76.11|both|dom
+PWM|Portland ME|43.65|-70.31|both|dom
+ABQ|Albuquerque|35.04|-106.61|both|dom
+SMF|Sacramento|38.70|-121.59|both|dom
+RNO|Reno/Tahoe|39.50|-119.77|both|dom
+RSW|Fort Myers|26.54|-81.76|both|dom
+PBI|West Palm Beach|26.68|-80.10|both|dom
+MKE|Milwaukee|42.95|-87.90|both|dom
+BZN|Bozeman MT|45.78|-111.15|both|dom
+CHS|Charleston SC|32.90|-80.04|both|dom
+JAX|Jacksonville|30.49|-81.69|both|dom
+SAV|Savannah|32.13|-81.20|both|dom
+MHT|Manchester NH|42.93|-71.44|both|dom
+BDL|Hartford/Springfield|41.94|-72.68|both|dom
+ORF|Norfolk|36.90|-76.02|both|dom
+RIC|Richmond|37.51|-77.32|both|dom
+PVD|Providence|41.73|-71.43|both|dom
+SRQ|Sarasota|27.40|-82.55|both|dom
+PSP|Palm Springs|33.83|-116.51|both|dom
+ONT|Ontario CA|34.06|-117.60|both|dom
+AVL|Asheville|35.44|-82.54|both|dom
+ILM|Wilmington NC|34.27|-77.90|both|dom
+BUR|Burbank|34.20|-118.36|both|dom
+HPN|White Plains|41.07|-73.71|both|dom
+TVC|Traverse City|44.74|-85.58|both|dom
+LGB|Long Beach|33.82|-118.15|b6|dom
+HYA|Hyannis (Cape Cod)|41.67|-70.28|b6|dom
+MVY|Martha's Vineyard|41.39|-70.61|b6|dom
+ACK|Nantucket|41.25|-70.06|b6|dom
+ISP|Long Island/Islip|40.80|-73.10|b6|dom
+EYW|Key West|24.56|-81.76|b6|dom
+PQI|Presque Isle ME|46.69|-68.04|b6|dom
+ORH|Worcester MA|42.27|-71.88|b6|dom
+IAD|Washington Dulles|38.94|-77.46|ua|dom
+CLT|Charlotte|35.21|-80.94|ua|dom
+MSP|Minneapolis|44.88|-93.22|ua|dom
+STL|St. Louis|38.75|-90.37|ua|dom
+CMH|Columbus OH|39.99|-82.89|ua|dom
+IND|Indianapolis|39.72|-86.29|ua|dom
+MCI|Kansas City|39.30|-94.71|ua|dom
+OMA|Omaha|41.30|-95.89|ua|dom
+SAT|San Antonio|29.53|-98.47|ua|dom
+MEM|Memphis|35.04|-89.98|ua|dom
+BHM|Birmingham AL|33.56|-86.75|ua|dom
+MSN|Madison WI|43.14|-89.34|ua|dom
+BOI|Boise|43.56|-116.22|ua|dom
+GEG|Spokane|47.62|-117.53|ua|dom
+ANC|Anchorage|61.17|-149.99|ua|dom
+OKC|Oklahoma City|35.39|-97.60|ua|dom
+LIT|Little Rock|34.73|-92.22|ua|dom
+GRB|Green Bay|44.49|-88.13|ua|dom
+SJU|San Juan PR|18.44|-66.00|both|car
+STT|St. Thomas USVI|18.34|-64.97|both|car
+STX|St. Croix USVI|17.70|-64.80|both|car
+MBJ|Montego Bay Jamaica|18.50|-77.91|both|car
+KIN|Kingston Jamaica|17.94|-76.79|both|car
+NAS|Nassau Bahamas|25.04|-77.47|both|car
+CUN|Cancun|21.04|-86.87|both|car
+SJD|Los Cabos|23.15|-109.72|both|car
+AUA|Aruba|12.50|-70.01|both|car
+GCM|Grand Cayman|19.29|-81.36|both|car
+PUJ|Punta Cana DR|18.57|-68.36|both|car
+SDQ|Santo Domingo DR|18.43|-69.67|both|car
+SXM|St. Maarten|18.04|-63.11|both|car
+BDA|Bermuda|32.36|-64.68|both|car
+ANU|Antigua|17.14|-61.79|both|car
+PAP|Port-au-Prince Haiti|18.58|-72.29|both|car
+POS|Port of Spain TT|10.60|-61.34|both|car
+BQN|Aguadilla PR|18.50|-67.13|b6|car
+PSE|Ponce PR|18.01|-66.56|b6|car
+POP|Puerto Plata DR|19.76|-70.57|b6|car
+STI|Santiago DR|19.41|-70.60|b6|car
+BGI|Bridgetown Barbados|13.07|-59.49|b6|car
+BON|Bonaire|12.13|-68.27|b6|car
+CUR|Curacao|12.19|-68.96|b6|car
+SKB|St. Kitts|17.31|-62.72|b6|car
+UVF|St. Lucia|13.73|-60.96|b6|car
+SVD|St. Vincent|13.13|-61.21|b6|car
+PLS|Providenciales TCI|21.77|-72.27|b6|car
+GND|Grenada|12.00|-61.79|b6|car
+PTP|Guadeloupe|16.27|-61.53|b6|car
+GUA|Guatemala City|14.58|-90.53|both|lat
+SJO|San Jose CR|9.99|-84.21|both|lat
+CTG|Cartagena Colombia|10.44|-75.51|both|lat
+BZE|Belize City|17.54|-88.31|both|lat
+MDE|Medellin Colombia|6.17|-75.43|both|lat
+GYE|Guayaquil Ecuador|-2.16|-79.88|b6|lat
+SAP|San Pedro Sula|15.45|-87.92|b6|lat
+GEO|Georgetown Guyana|6.50|-58.25|b6|lat
+LIR|Liberia CR|10.59|-85.54|b6|lat
+TQO|Tulum Mexico|20.23|-87.47|b6|lat
+MEX|Mexico City|19.44|-99.07|ua|lat
+GDL|Guadalajara|20.52|-103.31|ua|lat
+MTY|Monterrey|25.78|-100.11|ua|lat
+GRU|Sao Paulo Brazil|-23.43|-46.47|ua|lat
+EZE|Buenos Aires|-34.82|-58.54|ua|lat
+LIM|Lima Peru|-12.02|-77.11|ua|lat
+BOG|Bogota Colombia|4.70|-74.14|ua|lat
+SCL|Santiago Chile|-33.39|-70.79|ua|lat
+PVR|Puerto Vallarta|20.68|-105.25|ua|lat
+OAX|Oaxaca Mexico|17.00|-96.73|ua|lat
+CZM|Cozumel Mexico|20.52|-86.93|ua|lat
+PXM|Puerto Escondido MX|15.87|-97.09|ua|lat
+LHR|London Heathrow|51.48|-0.46|both|eur
+CDG|Paris CDG|49.01|2.55|both|eur
+AMS|Amsterdam|52.31|4.77|both|eur
+DUB|Dublin|53.43|-6.27|both|eur
+MAD|Madrid|40.47|-3.56|both|eur
+EDI|Edinburgh|55.95|-3.37|both|eur
+BCN|Barcelona (JetBlue new 2026)|41.30|2.08|both|eur
+MXP|Milan (JetBlue new 2026)|45.63|8.73|both|eur
+LGW|London Gatwick|51.15|-0.18|b6|eur
+FRA|Frankfurt|50.04|8.56|ua|eur
+MUC|Munich|48.35|11.79|ua|eur
+ZRH|Zurich|47.46|8.55|ua|eur
+FCO|Rome Fiumicino|41.80|12.25|ua|eur
+VCE|Venice|45.51|12.35|ua|eur
+BRU|Brussels|50.90|4.48|ua|eur
+LIS|Lisbon|38.78|-9.14|ua|eur
+ATH|Athens|37.94|23.95|ua|eur
+VIE|Vienna|48.11|16.57|ua|eur
+CPH|Copenhagen|55.62|12.66|ua|eur
+OSL|Oslo|60.20|11.08|ua|eur
+ARN|Stockholm|59.65|17.93|ua|eur
+HEL|Helsinki|60.32|24.96|ua|eur
+WAW|Warsaw|52.17|20.97|ua|eur
+PRG|Prague|50.10|14.26|ua|eur
+GLA|Glasgow (UA new 2026)|55.87|-4.43|ua|eur
+SPU|Split Croatia (UA new 2026)|43.54|16.30|ua|eur
+BRI|Bari Italy (UA new 2026)|41.14|16.76|ua|eur
+SCQ|Santiago de Compostela (UA new 2026)|42.90|-8.42|ua|eur
+PMO|Palermo Sicily|38.18|13.10|ua|eur
+BIO|Bilbao Spain|43.30|-2.91|ua|eur
+FAO|Faro Portugal|37.02|-7.97|ua|eur
+FNC|Madeira Island|32.70|-16.77|ua|eur
+KEF|Reykjavik (UA new 2026)|63.99|-22.62|ua|eur
+GOH|Nuuk Greenland|64.19|-51.68|ua|eur
+NRT|Tokyo Narita|35.77|140.39|ua|asi
+HND|Tokyo Haneda|35.55|139.78|ua|asi
+PEK|Beijing|40.08|116.58|ua|asi
+PVG|Shanghai|31.15|121.81|ua|asi
+HKG|Hong Kong|22.31|113.91|ua|asi
+ICN|Seoul Incheon|37.46|126.44|ua|asi
+SIN|Singapore|1.36|103.99|ua|asi
+BOM|Mumbai|19.09|72.87|ua|asi
+DEL|Delhi|28.56|77.10|ua|asi
+SYD|Sydney|-33.95|151.18|ua|asi
+AKL|Auckland|-37.01|174.79|ua|asi
+HNL|Honolulu|21.32|-157.92|ua|asi
+OGG|Maui|20.90|-156.43|ua|asi
+GUM|Guam|13.48|144.80|ua|asi
+TPE|Taipei|25.08|121.23|ua|asi
+BKK|Bangkok|13.69|100.75|ua|asi
+KIX|Osaka|34.43|135.24|ua|asi
+MNL|Manila|14.51|121.02|ua|asi
+ULN|Ulaanbaatar|47.84|106.77|ua|asi
+TLV|Tel Aviv|32.01|34.89|ua|mea
+DXB|Dubai|25.25|55.36|ua|mea
+DKR|Dakar Senegal|14.74|-17.49|ua|mea
+ACC|Accra Ghana|5.60|-0.17|ua|mea
+LOS|Lagos Nigeria|6.58|3.32|ua|mea`;
+
+const AP=RAW.trim().split('\n').map(l=>{const[c,n,lat,lng,cat,r]=l.split('|');return{c,n,lat:+lat,lng:+lng,cat,r}});
+let curCat='all',curReg='all',curTab='map',curStop='any';
+const W=680,H=355;
+const svg=d3.select('#wmap');
+svg.append('path').datum({type:'Sphere'}).attr('fill','#0f1923');
+const grat=svg.append('path').datum(d3.geoGraticule()()).attr('fill','none').attr('stroke','#152535').attr('stroke-width',.3);
+const cg=svg.append('g'),dg=svg.append('g');
+let proj;
+
+function filt(){return AP.filter(a=>(curCat==='all'||a.cat===curCat)&&(curReg==='all'||a.r===curReg)&&(curStop==='any'||BNS.has(a.c)))}
+
+function renderDots(){
+  const sorted=[...filt()].sort((a,b)=>({ua:0,both:1,b6:2}[a.cat]-{ua:0,both:1,b6:2}[b.cat]));
+  dg.selectAll('circle').remove();
+  if(!proj)return;
+  const tipEl=document.getElementById('tip');
+  dg.selectAll('circle').data(sorted).join('circle')
+    .attr('cx',d=>{const p=proj([d.lng,d.lat]);return p?p[0]:-999})
+    .attr('cy',d=>{const p=proj([d.lng,d.lat]);return p?p[1]:-999})
+    .attr('r',d=>d.cat==='ua'?3.5:4)
+    .attr('fill',d=>CC[d.cat]).attr('fill-opacity',.9)
+    .style('cursor','pointer')
+    .on('mouseover',function(ev,d){
+      const sr=document.getElementById('wmap').getBoundingClientRect();
+      const wr=document.getElementById('mwrap').getBoundingClientRect();
+      const[px,py]=proj([d.lng,d.lat]);
+      const lx=px*(sr.width/W)+(sr.left-wr.left);
+      const ly=py*(sr.height/H)+(sr.top-wr.top);
+      document.getElementById('tip-n').textContent=d.c+' \u2014 '+d.n;
+      document.getElementById('tip-s').textContent=CL[d.cat]+' \u00b7 '+RL[d.r]+(BNS.has(d.c)?' \u00b7 \u2708 BOS non-stop':'');
+      tipEl.style.borderLeft='4px solid '+CC[d.cat];
+      tipEl.style.left=Math.min(lx+12,wr.width-250)+'px';
+      tipEl.style.top=Math.max(ly-50,6)+'px';
+      tipEl.style.display='block';
+      d3.select(this).attr('r',6.5);
+    })
+    .on('mouseout',function(ev,d){tipEl.style.display='none';d3.select(this).attr('r',d.cat==='ua'?3.5:4)});
+}
+
+function renderTable(){
+  const rows=filt();
+  const ro=['dom','car','lat','eur','asi','mea'],co={both:0,b6:1,ua:2};
+  rows.sort((a,b)=>ro.indexOf(a.r)-ro.indexOf(b.r)||co[a.cat]-co[b.cat]||a.n.localeCompare(b.n));
+  document.getElementById('tbl-ct').textContent='Showing '+rows.length+' destinations';
+  document.getElementById('tbody').innerHTML=rows.map(a=>`<tr style="border-bottom:0.5px solid rgba(0,0,0,.09)">
+    <td style="padding:5px 8px;font-family:monospace;font-size:12px;color:#777">${a.c}</td>
+    <td style="padding:5px 8px;color:#111;font-size:13px">${a.n}</td>
+    <td style="padding:5px 8px;text-align:center">${BNS.has(a.c)?'<span style="color:#c0392b;font-size:14px" title="BOS non-stop">&#9992;</span>':''}</td>
+    <td style="padding:5px 8px;font-size:12px;color:#777">${RL[a.r]}</td>
+    <td style="padding:5px 8px"><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;${BS[a.cat]}">${CL[a.cat]}</span></td>
+  </tr>`).join('');
+}
+
+function setTab(t){
+  curTab=t;
+  document.getElementById('v-map').style.display=t==='map'?'block':'none';
+  document.getElementById('v-tbl').style.display=t==='tbl'?'block':'none';
+  document.getElementById('t-map').className='tb'+(t==='map'?' on':'');
+  document.getElementById('t-tbl').className='tb'+(t==='tbl'?' on':'');
+  if(t==='tbl')renderTable();
+}
+function setCat(c){curCat=c;document.querySelectorAll('#cat-btns .fb').forEach(b=>b.className='fb'+(b.dataset.c===c?' on':''));curTab==='map'?renderDots():renderTable()}
+function setReg(r){curReg=r;document.querySelectorAll('#reg-btns .fb').forEach(b=>b.className='fb'+(b.dataset.r===r?' on':''));renderTable()}
+function setStop(s){curStop=s;document.querySelectorAll('#stop-btns .sb').forEach(b=>b.className='sb'+(b.dataset.s===s?' on':''));curTab==='map'?renderDots():renderTable()}
+
+d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world=>{
+  proj=d3.geoNaturalEarth1().scale(108).translate([W/2,H/2]);
+  const path=d3.geoPath().projection(proj);
+  svg.select('path').attr('d',path);
+  grat.attr('d',path);
+  cg.selectAll('path').data(topojson.feature(world,world.objects.countries).features)
+    .join('path').attr('d',path).attr('fill','#1a2f40').attr('stroke','#243d50').attr('stroke-width',.3);
+  renderDots();
+}).catch(()=>{
+  proj=d3.geoNaturalEarth1().scale(108).translate([W/2,H/2]);
+  svg.append('text').attr('x',W/2).attr('y',H/2).attr('text-anchor','middle').attr('fill','#556').attr('font-size',13).text('Switch to Table view to browse all destinations');
+  renderDots();
+});
+renderTable();
+</script>
